@@ -64,7 +64,7 @@ if ( NODEJS ) {
 var PptxGenJS = function(){
 	// APP
 	var APP_VER = "2.0.0-beta";
-	var APP_REL = "20171214";
+	var APP_REL = "20180120";
 
 	// CONSTANTS
 	var MASTER_OBJECTS = {
@@ -276,9 +276,9 @@ var PptxGenJS = function(){
 			}
 			resultObject.options.bodyProp = {};
 			resultObject.options.bodyProp.autoFit = (opt.autoFit || false); // If true, shape will collapse to text size (Fit To Shape)
-			resultObject.options.bodyProp.anchor  = (opt.valign || 'ctr'); // VALS: [t,ctr,b]
-			resultObject.options.bodyProp.rot     = (opt.rotate || null); // VALS: degree * 60,000
-			resultObject.options.bodyProp.vert    = (opt.vert || null); // VALS: [eaVert,horz,mongolianVert,vert,vert270,wordArtVert,wordArtVertRtl]
+			resultObject.options.bodyProp.anchor = (opt.valign || 'ctr'); // VALS: [t,ctr,b]
+			resultObject.options.bodyProp.rot = (opt.rot || '0'); // VALS: degree * 60,000
+			resultObject.options.bodyProp.vert = (opt.vert || 'horz'); // VALS: [eaVert,horz,mongolianVert,vert,vert270,wordArtVert,wordArtVertRtl]
 			resultObject.options.lineSpacing = (opt.lineSpacing && !isNaN(opt.lineSpacing) ? opt.lineSpacing : null);
 
 			if ( (opt.inset && !isNaN(Number(opt.inset))) || opt.inset == 0 ) {
@@ -2716,6 +2716,31 @@ var PptxGenJS = function(){
 						strXml += '</c:marker>';
 					}
 
+					// 3: "Data Labels" --- moved from following section due to the need for custom colored labels
+					{
+						strXml += '  <c:dLbls>';
+						strXml += '    <c:numFmt formatCode="'+ opts.dataLabelFormatCode +'" sourceLinked="0"/>';
+						strXml += '    <c:txPr>';
+						strXml += '      <a:bodyPr/>';
+						strXml += '      <a:lstStyle/>';
+						strXml += '      <a:p><a:pPr>';
+						strXml += '        <a:defRPr b="0" i="0" strike="noStrike" sz="'+ (opts.dataLabelFontSize || DEF_FONT_SIZE) +'00" u="none">';
+						strXml += '          <a:solidFill>'+ createColorElement(obj.customDataLabelColor || opts.dataLabelColor || DEF_FONT_COLOR) +'</a:solidFill>';
+						strXml += '          <a:latin typeface="'+ (opts.dataLabelFontFace || 'Arial') +'"/>';
+						strXml += '        </a:defRPr>';
+						strXml += '      </a:pPr></a:p>';
+						strXml += '    </c:txPr>';
+						if ( opts.type != 'area' ) strXml += '<c:dLblPos val="'+ (opts.dataLabelPosition || 'outEnd') +'"/>';
+						strXml += '    <c:showLegendKey val="0"/>';
+						strXml += '    <c:showVal val="'+ (opts.showValue ? '1' : '0') +'"/>';
+						strXml += '    <c:showCatName val="0"/>';
+						strXml += '    <c:showSerName val="0"/>';
+						strXml += '    <c:showPercent val="0"/>';
+						strXml += '    <c:showBubbleSize val="0"/>';
+						strXml += '    <c:showLeaderLines val="0"/>';
+						strXml += '  </c:dLbls>';
+					}
+
 					// Color chart bars various colors
 					// Allow users with a single data set to pass their own array of colors (check for this using != ours)
 					if ( chartType == 'bar' && ( data.length === 1 || opts.valueBarColors ) && opts.chartColors != BARCHART_COLORS ) {
@@ -2796,30 +2821,7 @@ var PptxGenJS = function(){
 					strXml += '</c:ser>';
 				});
 
-				// 3: "Data Labels"
-				{
-					strXml += '  <c:dLbls>';
-					strXml += '    <c:numFmt formatCode="'+ opts.dataLabelFormatCode +'" sourceLinked="0"/>';
-					strXml += '    <c:txPr>';
-					strXml += '      <a:bodyPr/>';
-					strXml += '      <a:lstStyle/>';
-					strXml += '      <a:p><a:pPr>';
-					strXml += '        <a:defRPr b="0" i="0" strike="noStrike" sz="'+ (opts.dataLabelFontSize || DEF_FONT_SIZE) +'00" u="none">';
-					strXml += '          <a:solidFill>'+ createColorElement(opts.dataLabelColor || DEF_FONT_COLOR) +'</a:solidFill>';
-					strXml += '          <a:latin typeface="'+ (opts.dataLabelFontFace || 'Arial') +'"/>';
-					strXml += '        </a:defRPr>';
-					strXml += '      </a:pPr></a:p>';
-					strXml += '    </c:txPr>';
-					if ( opts.type != 'area' ) strXml += '<c:dLblPos val="'+ (opts.dataLabelPosition || 'outEnd') +'"/>';
-					strXml += '    <c:showLegendKey val="0"/>';
-					strXml += '    <c:showVal val="'+ (opts.showValue ? '1' : '0') +'"/>';
-					strXml += '    <c:showCatName val="0"/>';
-					strXml += '    <c:showSerName val="0"/>';
-					strXml += '    <c:showPercent val="0"/>';
-					strXml += '    <c:showBubbleSize val="0"/>';
-					strXml += '    <c:showLeaderLines val="0"/>';
-					strXml += '  </c:dLbls>';
-				}
+				// 3: "Data Labels" --- moved to previous section
 
 				// 4: Add more chart options (gapWidth, line Marker, etc.)
 				if ( chartType == 'bar' ) {
@@ -3821,10 +3823,11 @@ var PptxGenJS = function(){
 			// A: Enable or disable textwrapping none or square:
 			( objOptions.bodyProp.wrap ) ? bodyProperties += ' wrap="' + objOptions.bodyProp.wrap + '" rtlCol="0"' : bodyProperties += ' wrap="square" rtlCol="0"';
 
-			// B: Set anchorPoints :
-			if ( objOptions.bodyProp.anchor ) bodyProperties += ' anchor="'+ objOptions.bodyProp.anchor +'"'; // VALS: [t,ctr,b]
-			if ( objOptions.bodyProp.rot    ) bodyProperties += ' rot="'   + convertRotationDegrees(objOptions.bodyProp.rot) +'"'; // VALS: degree * 60,000
-			if ( objOptions.bodyProp.vert   ) bodyProperties += ' vert="'  + objOptions.bodyProp.vert   +'"'; // VALS: [eaVert,horz,mongolianVert,vert,vert270,wordArtVert,wordArtVertRtl]
+			// B: Set anchorPoints ('t','ctr',b'):
+			if ( objOptions.bodyProp.anchor ) bodyProperties += ' anchor="' + objOptions.bodyProp.anchor + '"';
+			//if ( objOptions.bodyProp.anchorCtr ) bodyProperties += ' anchorCtr="' + objOptions.bodyProp.anchorCtr + '"';
+			if ( objOptions.bodyProp.rot ) bodyProperties += ' rot="' + objOptions.bodyProp.rot + '"';
+			if ( objOptions.bodyProp.vert ) bodyProperties += ' vert="' + objOptions.bodyProp.vert + '"';
 
 			// C: Textbox margins [padding]:
 			if ( objOptions.bodyProp.bIns || objOptions.bodyProp.bIns == 0 ) bodyProperties += ' bIns="' + objOptions.bodyProp.bIns + '"';
